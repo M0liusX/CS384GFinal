@@ -1,0 +1,6 @@
+1. Mario Molina
+2. + Added 1.0 unit radius sphere in Point Light Source Location (-10,10,0). You have to zoom out with s and click 'm' on the keyboard to show the "moon"...
+   + Tried adding the constant width wireframe by dividing by the sqaure root of the area of the triangle, but not sure if this is completley right left it as default way to view wireframe.  
+    + My phong shading has some ambient, diffuse, and specular lighting. Not sure what else was needed.
+
+PS: I am using some of my buffer time for this project. Should be somewhere around 9 hours used by the time I turn in this project.
