@@ -9,7 +9,7 @@
 class Vertex {
 public:
 	int id;
-	std::vector<int> adj_faces;
+	std::set<int> adj_faces;
 	std::set<int> adj_vertices;
 
 };
@@ -33,9 +33,9 @@ public:
 
 		for (int i = 0; i < obj_faces.size(); ++i)
 		{
-			vertices[obj_faces[i].x].adj_faces.push_back(i);
-			vertices[obj_faces[i].y].adj_faces.push_back(i);
-			vertices[obj_faces[i].z].adj_faces.push_back(i);
+			vertices[obj_faces[i].x].adj_faces.insert(i);
+			vertices[obj_faces[i].y].adj_faces.insert(i);
+			vertices[obj_faces[i].z].adj_faces.insert(i);
 		}
 
 		for (int i = 0; i < vertices.size(); ++i) {
@@ -65,11 +65,14 @@ public:
 
 class Subdivision {
 public:
+
+	AdjacencyStructure* as;
+
 	Subdivision();
 	~Subdivision();
 
   void loop_subdivision(std::vector<glm::vec4>& obj_vertices,
-	                       std::vector<glm::uvec3>& obj_faces) const;
+	                       std::vector<glm::uvec3>& obj_faces) ;
 
   void catmull_clark_subdivision(std::vector<glm::vec4>& obj_vertices,
                        	 std::vector<glm::uvec3>& obj_faces) const;
@@ -77,8 +80,7 @@ public:
   void show_limit_surface(std::vector<glm::vec4>& obj_vertices,
                         std::vector<glm::uvec3>& obj_faces) const;
 
-  void outer(std::vector<glm::vec4>& obj_vertices,
-	                       std::vector<glm::uvec3>& obj_faces) const;
+  std::set<int> shared_faces(int v1, int v2) const;
 
 private:
 };
