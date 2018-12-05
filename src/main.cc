@@ -1,6 +1,7 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include <memory>
 #include <chrono>
@@ -37,6 +38,9 @@ GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptor
 
 std::vector<glm::vec4> obj_vertices;
 std::vector<glm::uvec3> obj_faces;
+
+std::vector<glm::vec4> load_obj_vertices;
+std::vector<glm::uvec3> load_obj_faces;
 
 std::vector<glm::vec4> ocean_vertices;
 std::vector<glm::uvec4> ocean_faces;
@@ -166,19 +170,9 @@ in vec4 light_direction;
 out vec4 fragment_color;
 void main()
 {
-	vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
+	vec4 color = vec4(1.0, 0.0, 0.0, 1.0);
 	float dot_nl = dot(normalize(light_direction), normalize(normal));
 	dot_nl = clamp(dot_nl, 0.0, 1.0);
-
-	if(abs(global_normal.x)  > 0.98f){
-		color = vec4(1.0,0.0,0.0,1.0);
-	}
-	if(abs(global_normal.y)  > 0.98f){
-		color = vec4(0.0,1.0,0.0,1.0);
-	}
-	if(abs(global_normal.z)  > 0.98f){
-		color = vec4(0.0,0.0,1.0,1.0);
-	}
 
 	fragment_color = clamp(dot_nl * color, 0.0, 1.0);
 }
@@ -692,6 +686,77 @@ SaveObj()
   }
 }
 
+void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
+			std::vector<glm::uvec3>& indices)
+{
+
+	vertices.clear();
+	indices.clear();
+
+	std::ifstream myfile (filename);
+
+	if (myfile.is_open())
+  	{
+  		std::string line;
+		while (! myfile.eof() )
+    	{
+      		getline (myfile,line);
+
+      		//Add New Vertex
+      		if(line.c_str()[0] == 'v'){
+      			std::stringstream stream(line); 
+      			std::vector<std::string> tokens;
+      			std::string x;
+      			while(getline(stream, x, ' ')) 
+    			{ 
+        			tokens.push_back(x); 
+    			}
+
+    			std::cout << "v ";
+    			std::vector<float> new_vertex;
+    			for(auto& v : tokens){
+    				if(v == "v"){continue;}
+    				float p = stof(v);
+    				std::cout << p << " ";
+    				new_vertex.push_back(p);
+    			}
+
+    			vertices.push_back(glm::vec4(new_vertex[0], new_vertex[1], new_vertex[2], 1.0f));
+    			std::cout << std::endl;
+      		}
+
+      		//Add New Face
+      		if(line.c_str()[0] == 'f'){
+      			std::stringstream stream(line); 
+      			std::vector<std::string> tokens;
+      			std::string x;
+      			while(getline(stream, x, ' ')) 
+    			{ 
+        			tokens.push_back(x); 
+    			}
+
+    			std::cout << "f ";
+    			std::vector<float> new_face;
+    			for(auto& v : tokens){
+    				if(v == "f"){continue;}
+    				int p = stoi(v);
+    				std::cout << p << " ";
+    				new_face.push_back(p - 1);
+    			}
+
+    			indices.push_back(glm::uvec3(new_face[0], new_face[1], new_face[2]));
+    			std::cout << std::endl;
+      		}
+      		
+      	}
+  	}
+
+  	myfile.close();
+	std::cout << vertices.size() << std::endl;
+	std::cout << indices.size() << std::endl;
+
+}
+
 void
 ErrorCallback(int error, const char* description)
 {
@@ -857,6 +922,8 @@ int main(int argc, char* argv[])
 	g_menger->set_nesting_level(1);
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
+
+	LoadObj("../objects/donut.obj", obj_vertices, obj_faces);
 
 	glm::vec4 min_bounds = glm::vec4(std::numeric_limits<float>::max());
 	glm::vec4 max_bounds = glm::vec4(-std::numeric_limits<float>::max());
