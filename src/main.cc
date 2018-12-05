@@ -15,6 +15,7 @@
 #include <GLFW/glfw3.h>
 #include <debuggl.h>
 #include "menger.h"
+#include "subdivision.h"
 #include "camera.h"
 
 int window_width = 800, window_height = 600;
@@ -764,6 +765,7 @@ ErrorCallback(int error, const char* description)
 }
 
 std::shared_ptr<Menger> g_menger;
+std::shared_ptr<Subdivision> g_sub;
 Camera g_camera;
 
 void
@@ -891,6 +893,7 @@ int main(int argc, char* argv[])
 	}
 
 	g_menger = std::make_shared<Menger>();
+	g_sub = std::make_shared<Subdivision>();
 	glfwSetErrorCallback(ErrorCallback);
 
 	// Ask an OpenGL 4.1 core profile context
@@ -923,7 +926,8 @@ int main(int argc, char* argv[])
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
 
-	LoadObj("../objects/donut.obj", obj_vertices, obj_faces);
+	LoadObj("../objects/cube.s.obj", obj_vertices, obj_faces);
+	g_sub->loop_subdivision(obj_vertices, obj_faces);
 
 	glm::vec4 min_bounds = glm::vec4(std::numeric_limits<float>::max());
 	glm::vec4 max_bounds = glm::vec4(-std::numeric_limits<float>::max());
