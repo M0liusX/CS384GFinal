@@ -11,7 +11,7 @@ Subdivision::~Subdivision()
 }
 
 void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
-                          std::vector<glm::uvec3>& obj_faces)
+                          std::vector<glm::uvec3>& obj_faces, std::vector<glm::vec4>& sharp_vertices_start, std::vector<glm::vec4>& sharp_vertices_end)
 {
 	//std::cout << "test" << std::endl;
 	as = new AdjacencyStructure(obj_vertices, obj_faces);
@@ -26,6 +26,7 @@ void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
 		for(auto i : combination){
 			std::vector<int> current = combination;
 			current.erase(current.begin() + i);
+			glm::vec4 new_odd_vertix;
 
 			std::set<int> sf = shared_faces(face[current[0]], face[current[1]]);
 			std::set<int> outer_vertices;
@@ -43,7 +44,33 @@ void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
 			// std::cout << std::endl;
 			int outer_v0 = *outer_vertices.begin();
 			int outer_v1 = *(++outer_vertices.begin());
-			glm::vec4 new_odd_vertix = (0.375f)*(obj_vertices[face[current[0]]] + obj_vertices[face[current[1]]]) + (0.125f)*(obj_vertices[outer_v0] + obj_vertices[outer_v1]);
+
+			bool sharp = false;
+      		for (int j = 0; j < sharp_vertices_start.size(); ++j)
+      		{
+      			if (obj_vertices[face[current[0]]] == sharp_vertices_start[j])
+      			{
+      				if (obj_vertices[face[current[1]]] == sharp_vertices_end[j])
+      				sharp = true;
+      			}
+
+      			if (obj_vertices[face[current[0]]] == sharp_vertices_end[j])
+      			{
+      				if (obj_vertices[face[current[1]]] == sharp_vertices_start[j])
+      				sharp = true;
+      			}
+      		}
+
+      		if (sharp) {
+      			new_odd_vertix = (0.5f)*(obj_vertices[face[current[0]]] + obj_vertices[face[current[1]]]);
+      			sharp_vertices_start.push_back(obj_vertices[face[current[0]]]);
+				sharp_vertices_end.push_back(new_odd_vertix);
+				sharp_vertices_start.push_back(new_odd_vertix);
+				sharp_vertices_end.push_back(obj_vertices[face[current[1]]]);
+      		}
+      		else {
+				new_odd_vertix = (0.375f)*(obj_vertices[face[current[0]]] + obj_vertices[face[current[1]]]) + (0.125f)*(obj_vertices[outer_v0] + obj_vertices[outer_v1]);
+			}
 
       bool duplicate = false;
       int index;
@@ -72,19 +99,43 @@ void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
       int n = current.adj_vertices.size();
       float beta;
       glm::vec4 sum = glm::vec4(0.0, 0.0, 0.0, 0.0);
+      glm::vec4 new_even_vertex;
 
-      if (n == 3) {
-        beta = 3.0 / 16.0;
+      //checks if vertex is on sharp edge
+      bool sharp = false;
+      for (int j = 0; j < sharp_vertices_start.size(); ++j)
+      {
+      	if (obj_vertices[obj_faces[z][i]] == sharp_vertices_start[j])
+      	{
+      		sharp = true;
+      	}
+      }
+      for (int j = 0; j < sharp_vertices_end.size(); ++j)
+      {
+      	if (obj_vertices[obj_faces[z][i]] == sharp_vertices_end[j])
+      	{
+      		sharp = true;
+      	}
+      }
+
+      if (sharp) {
+      	//NEEDS TO BE CHANGED
+      	new_even_vertex = obj_vertices[obj_faces[z][i]];
       }
       else {
-        beta = 3.0 / (8.0 * n);
-      }
+	      if (n == 3) {
+	        beta = 3.0 / 16.0;
+	      }
+	      else {
+	        beta = 3.0 / (8.0 * n);
+	      }
 
-      for (auto v : current.adj_vertices) {
-        sum = sum + obj_vertices[v];
-      }
+	      for (auto v : current.adj_vertices) {
+	        sum = sum + obj_vertices[v];
+	      }
 
-      glm::vec4 new_even_vertex = (obj_vertices[obj_faces[z][i]] * (1 - (n * beta))) + sum * beta;
+	      new_even_vertex = (obj_vertices[obj_faces[z][i]] * (1 - (n * beta))) + sum * beta;
+	  }
 
       bool duplicate = false;
       int index;

@@ -80,7 +80,7 @@ public:
 	~Subdivision();
 
   void loop_subdivision(std::vector<glm::vec4>& obj_vertices,
-	                       std::vector<glm::uvec3>& obj_faces) ;
+	                       std::vector<glm::uvec3>& obj_faces, std::vector<glm::vec4>& sharp_vertices_start, std::vector<glm::vec4>& sharp_vertices_end) ;
 
   void catmull_clark_subdivision(std::vector<glm::vec4>& obj_vertices,
                        	 std::vector<glm::uvec3>& obj_faces) const;

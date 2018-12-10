@@ -40,6 +40,9 @@ GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptor
 std::vector<glm::vec4> obj_vertices;
 std::vector<glm::uvec3> obj_faces;
 
+std::vector<glm::vec4> sharp_vertices_start;
+std::vector<glm::vec4> sharp_vertices_end;
+
 std::vector<glm::vec4> load_obj_vertices;
 std::vector<glm::uvec3> load_obj_faces;
 
@@ -927,7 +930,18 @@ int main(int argc, char* argv[])
 	g_menger->set_clean();
 
 	LoadObj("../objects/cube.s.obj", obj_vertices, obj_faces);
-	g_sub->loop_subdivision(obj_vertices, obj_faces);
+
+	//sets left side of cube.s.obj as sharp
+	/*sharp_vertices_start.push_back(obj_vertices[4]);
+	sharp_vertices_start.push_back(obj_vertices[12]);
+	sharp_vertices_start.push_back(obj_vertices[11]);
+	sharp_vertices_start.push_back(obj_vertices[7]);
+	sharp_vertices_end.push_back(obj_vertices[12]);
+	sharp_vertices_end.push_back(obj_vertices[11]);
+	sharp_vertices_end.push_back(obj_vertices[7]);
+	sharp_vertices_end.push_back(obj_vertices[4]);*/
+
+	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_vertices_start, sharp_vertices_end);
 
 	glm::vec4 min_bounds = glm::vec4(std::numeric_limits<float>::max());
 	glm::vec4 max_bounds = glm::vec4(-std::numeric_limits<float>::max());
