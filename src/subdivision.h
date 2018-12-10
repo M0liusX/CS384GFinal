@@ -14,21 +14,29 @@ public:
 
 };
 
-/*class Face {
+class Face {
+public:
 	int id;
-	vector<int> adj_vertices;
-}*/
+	std::vector<int> updated_vertices;
+	std::vector<int> edge_vertices;
+};
 
 class AdjacencyStructure {
 public:
 	std::vector<Vertex> vertices;
+	std::vector<Face> faces;
 
 	AdjacencyStructure(std::vector<glm::vec4>& obj_vertices,
 	                       std::vector<glm::uvec3>& obj_faces) {
 		vertices = std::vector<Vertex>(obj_vertices.size());
+		faces = std::vector<Face>(obj_faces.size());
 		for (int i = 0; i < obj_vertices.size(); ++i)
 		{
 			vertices[i].id = i;
+		}
+		for (int i = 0; i < obj_faces.size(); ++i)
+		{
+			faces[i].id = i;
 		}
 
 		for (int i = 0; i < obj_faces.size(); ++i)

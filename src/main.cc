@@ -104,7 +104,7 @@ uniform mat4 view;
 vec4 interpolate3D(vec4 v0, vec4 v1, vec4 v2)
 {
     return vec4(gl_TessCoord.x) * v0 + vec4(gl_TessCoord.y) * v1 + vec4(gl_TessCoord.z) * v2;
-} 
+}
 
 void main()
 {
@@ -155,7 +155,7 @@ void main()
 		gl_Position = projection * gl_in[n].gl_Position;
 		bary_coord = vec3(0.0,0.0,0.0);
 		bary_coord[n] = 1.0;
-		
+
 		EmitVertex();
 	}
 
@@ -186,12 +186,12 @@ uniform bool show_wireframes;
 flat in vec4 normal;
 in vec4 light_direction;
 in vec4 world_position;
-in vec3 bary_coord; 
+in vec3 bary_coord;
 in float area;
 out vec4 fragment_color;
 
 void main()
-{	
+{
 	fragment_color = vec4(0.0, 0.0, 0.0, 1.0);
 	if (mod(floor(world_position.x) + floor(world_position.z), 2) == 1) {
 		fragment_color = vec4(1.0, 1.0, 1.0, 1.0);
@@ -218,12 +218,12 @@ uniform bool show_wireframes;
 flat in vec4 normal;
 in vec4 light_direction;
 in vec4 world_position;
-in vec3 bary_coord; 
+in vec3 bary_coord;
 in float area;
 out vec4 fragment_color;
 
 void main()
-{	
+{
 	fragment_color = vec4(0.8, 1.0, 0.5, 1.0);
 
 	if(show_wireframes){
@@ -249,14 +249,14 @@ uniform vec3 eye_position;
 in vec4 normal;
 in vec4 light_direction;
 in vec4 world_position;
-in vec3 bary_coord; 
+in vec3 bary_coord;
 in float area;
 out vec4 fragment_color;
 
 void main()
-{	
+{
 	fragment_color = vec4(0.6, 0.8, 1.0, 1.0);
-	
+
 	//fragment_color = vec4(bary_coord, 1.0f);
 	float dot_nl = -dot(normalize(light_direction), normalize(normal));
 	dot_nl = clamp(dot_nl, 0.00, 1);
@@ -297,7 +297,7 @@ uniform int outer_level;
 uniform float wave_x;
 
 void main()
-{	
+{
 	// Set the control points of the output patch
 	cp_light_direction[gl_InvocationID] = vs_light_direction[gl_InvocationID];
 	cp_world_position[gl_InvocationID]  = vs_world_position[gl_InvocationID];
@@ -331,7 +331,7 @@ uniform vec4 light_position;
 uniform mat4 view;
 
 uniform float wave_x;
-uniform float t; 
+uniform float t;
 
 float gauss(float x){
 	float A = 5;
@@ -561,11 +561,11 @@ CreateFloor(std::vector<glm::vec4>& vertices,
 void
 CreateOcean(std::vector<glm::vec4>& vertices,
 			std::vector<glm::uvec4>& indices, float t){
-	
+
 	vertices.clear();
 	indices.clear();
-	
-	
+
+
 	double step = (40.0f)/32.0f;
 
 	for(int i = 0; i < 16; i++){
@@ -581,7 +581,7 @@ CreateOcean(std::vector<glm::vec4>& vertices,
 			indices.push_back(glm::uvec4(index, index + 1, index + 2, index + 3));
 		}
 	}
-	
+
 
 }
 
@@ -664,7 +664,7 @@ CreateSphere(std::vector<glm::vec4>& vertices,
 		vertices[i][3] = 1.0f;
 
 	}
-	
+
 
 }
 
@@ -705,12 +705,12 @@ void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
 
       		//Add New Vertex
       		if(line.c_str()[0] == 'v'){
-      			std::stringstream stream(line); 
+      			std::stringstream stream(line);
       			std::vector<std::string> tokens;
       			std::string x;
-      			while(getline(stream, x, ' ')) 
-    			{ 
-        			tokens.push_back(x); 
+      			while(getline(stream, x, ' '))
+    			{
+        			tokens.push_back(x);
     			}
 
     			std::cout << "v ";
@@ -728,12 +728,12 @@ void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
 
       		//Add New Face
       		if(line.c_str()[0] == 'f'){
-      			std::stringstream stream(line); 
+      			std::stringstream stream(line);
       			std::vector<std::string> tokens;
       			std::string x;
-      			while(getline(stream, x, ' ')) 
-    			{ 
-        			tokens.push_back(x); 
+      			while(getline(stream, x, ' '))
+    			{
+        			tokens.push_back(x);
     			}
 
     			std::cout << "f ";
@@ -748,7 +748,7 @@ void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
     			indices.push_back(glm::uvec3(new_face[0], new_face[1], new_face[2]));
     			std::cout << std::endl;
       		}
-      		
+
       	}
   	}
 
@@ -859,7 +859,7 @@ bool g_mouse_pressed;
 void
 MousePosCallback(GLFWwindow* window, double mouse_x, double mouse_y)
 {
-	
+
 	if (!g_mouse_pressed){
 	    current_mouse_x = mouse_x;
         current_mouse_y = mouse_y;
@@ -920,7 +920,7 @@ int main(int argc, char* argv[])
 	std::cout << "OpenGL version supported:" << version << "\n";
 
         //FIXME: Create the geometry from a Menger object.
-       
+
 
 	g_menger->set_nesting_level(1);
 	g_menger->generate_geometry(obj_vertices, obj_faces);
@@ -1181,7 +1181,7 @@ int main(int argc, char* argv[])
 	CHECK_GL_ERROR(outer_level_location =
 			glGetUniformLocation(floor_program_id, "outer_level"));
 
-	
+
 
 	// Setup tc_shader for the floor
 	GLuint ocean_tc_shader_id = 0;
@@ -1378,7 +1378,7 @@ int main(int argc, char* argv[])
 			// CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
 			// 			sizeof(uint32_t) * floor_faces.size() * 3,
 			// 			floor_faces.data(), GL_STATIC_DRAW));
-			
+
 			//OCEAN after hitting keypad
 			// CreateOcean(ocean_vertices, ocean_faces, t.count());
 			// // Switch to the VAO for Floor.
@@ -1387,7 +1387,7 @@ int main(int argc, char* argv[])
 			// // Setup vertex data in a VBO.
 			// CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kVertexBuffer]));
 			// CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, g_buffer_objects[kOceanVao][kIndexBuffer]));
-			
+
 			// // NOTE: We do not send anything right now, we just describe it to OpenGL.
 			// CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
 			// 			sizeof(float) * ocean_vertices.size() * 4, ocean_vertices.data(),
@@ -1399,7 +1399,7 @@ int main(int argc, char* argv[])
 			// CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
 			// 			sizeof(uint32_t) * ocean_faces.size() * 4,
 			// 			ocean_faces.data(), GL_DYNAMIC_DRAW));
-			
+
 		}
 
 		CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
@@ -1470,7 +1470,7 @@ int main(int argc, char* argv[])
 		if(show_sphere){
 			CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, sphere_faces.size() * 3, GL_UNSIGNED_INT, 0));
 		}
-		
+
 
 
 		// FIXME: Render the Ocean
