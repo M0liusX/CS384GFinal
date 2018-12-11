@@ -715,11 +715,8 @@ void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
 			std::vector<glm::uvec3>& indices,std::vector<int>& sharp_crease_start_index, 
 			std::vector<int>& sharp_crease_end_index, std::vector<int>& sticky_vertices_indexes)
 {
-<<<<<<< HEAD
 	polycount = 3;
 	glPatchParameteri(GL_PATCH_VERTICES, polycount);
-=======
->>>>>>> 1bae9352c2e56ec2b9d4d42cbd10ede74766da02
 	vertices.clear();
 	indices.clear();
 
