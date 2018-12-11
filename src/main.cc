@@ -40,8 +40,11 @@ GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptor
 std::vector<glm::vec4> obj_vertices;
 std::vector<glm::uvec3> obj_faces;
 
-std::vector<glm::vec4> sharp_vertices_start;
-std::vector<glm::vec4> sharp_vertices_end;
+std::vector<int> sharp_crease_start_index;
+std::vector<int> sharp_crease_end_index;
+
+std::vector<glm::vec4> sharp_crease_start;
+std::vector<glm::vec4> sharp_crease_end;
 
 std::vector<glm::vec4> load_obj_vertices;
 std::vector<glm::uvec3> load_obj_faces;
@@ -691,7 +694,7 @@ SaveObj()
 }
 
 void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
-			std::vector<glm::uvec3>& indices)
+			std::vector<glm::uvec3>& indices,std::vector<int>& sharp_crease_start_index, std::vector<int>& sharp_crease_end_index)
 {
 
 	vertices.clear();
@@ -749,6 +752,29 @@ void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
     			}
 
     			indices.push_back(glm::uvec3(new_face[0], new_face[1], new_face[2]));
+    			std::cout << std::endl;
+      		}
+
+      		if(line.c_str()[0] == 's' && line.c_str()[1] == 'e'){
+      			std::stringstream stream(line);
+      			std::vector<std::string> tokens;
+      			std::string x;
+      			while(getline(stream, x, ' '))
+    			{
+        			tokens.push_back(x);
+    			}
+
+    			std::cout << "se ";
+    			std::vector<float> new_crease;
+    			for(auto& v : tokens){
+    				if(v == "se"){continue;}
+    				int p = stoi(v);
+    				std::cout << p << " ";
+    				new_crease.push_back(p - 1);
+    			}
+
+    			sharp_crease_start_index.push_back(new_crease[0]);
+    			sharp_crease_end_index.push_back(new_crease[1]);
     			std::cout << std::endl;
       		}
 
@@ -929,19 +955,28 @@ int main(int argc, char* argv[])
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
 
-	LoadObj("../objects/cube.s.obj", obj_vertices, obj_faces);
+	LoadObj("../objects/cube_cylinder_sharp.s.obj", obj_vertices, obj_faces, sharp_crease_start_index, sharp_crease_end_index);
+	for (int i = 0; i < sharp_crease_start_index.size(); ++i)
+	{
+		sharp_crease_start.push_back(obj_vertices[sharp_crease_start_index[i]]);
+		sharp_crease_end.push_back(obj_vertices[sharp_crease_end_index[i]]);
+	}
 
 	//sets left side of cube.s.obj as sharp
-	/*sharp_vertices_start.push_back(obj_vertices[4]);
-	sharp_vertices_start.push_back(obj_vertices[12]);
-	sharp_vertices_start.push_back(obj_vertices[11]);
-	sharp_vertices_start.push_back(obj_vertices[7]);
-	sharp_vertices_end.push_back(obj_vertices[12]);
-	sharp_vertices_end.push_back(obj_vertices[11]);
-	sharp_vertices_end.push_back(obj_vertices[7]);
-	sharp_vertices_end.push_back(obj_vertices[4]);*/
+	/*sharp_crease_start.push_back(obj_vertices[4]);
+	sharp_crease_start.push_back(obj_vertices[12]);
+	sharp_crease_start.push_back(obj_vertices[11]);
+	sharp_crease_start.push_back(obj_vertices[7]);
+	sharp_crease_end.push_back(obj_vertices[12]);
+	sharp_crease_end.push_back(obj_vertices[11]);
+	sharp_crease_end.push_back(obj_vertices[7]);
+	sharp_crease_end.push_back(obj_vertices[4]);*/
 
-	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_vertices_start, sharp_vertices_end);
+	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end);
+	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end);
+	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end);
+	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end);
+	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end);
 
 	glm::vec4 min_bounds = glm::vec4(std::numeric_limits<float>::max());
 	glm::vec4 max_bounds = glm::vec4(-std::numeric_limits<float>::max());

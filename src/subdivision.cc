@@ -11,85 +11,16 @@ Subdivision::~Subdivision()
 }
 
 void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
-                          std::vector<glm::uvec3>& obj_faces, std::vector<glm::vec4>& sharp_vertices_start, std::vector<glm::vec4>& sharp_vertices_end)
+                          std::vector<glm::uvec3>& obj_faces, std::vector<glm::vec4>& sharp_crease_start, std::vector<glm::vec4>& sharp_crease_end)
 {
 	//std::cout << "test" << std::endl;
 	as = new AdjacencyStructure(obj_vertices, obj_faces);
 	//as->printStructure();
 	std::vector<glm::vec4> odd_vertices;
   std::vector<glm::vec4> even_vertices;
-
-  //computes odd vertices
-	for (int x = 0; x < obj_faces.size(); x++) {
-    glm::uvec3 face = obj_faces[x];
-		std::vector<int> combination{0,1,2};
-		for(auto i : combination){
-			std::vector<int> current = combination;
-			current.erase(current.begin() + i);
-			glm::vec4 new_odd_vertix;
-
-			std::set<int> sf = shared_faces(face[current[0]], face[current[1]]);
-			std::set<int> outer_vertices;
-			for(auto f : sf){
-				outer_vertices.insert(obj_faces[f].x);
-				outer_vertices.insert(obj_faces[f].y);
-				outer_vertices.insert(obj_faces[f].z);
-			}
-			outer_vertices.erase(face[current[0]]);
-			outer_vertices.erase(face[current[1]]);
-
-			// for(auto v: outer_vertices){
-			// 	std::cout << v << " ";
-			// }
-			// std::cout << std::endl;
-			int outer_v0 = *outer_vertices.begin();
-			int outer_v1 = *(++outer_vertices.begin());
-
-			bool sharp = false;
-      		for (int j = 0; j < sharp_vertices_start.size(); ++j)
-      		{
-      			if (obj_vertices[face[current[0]]] == sharp_vertices_start[j])
-      			{
-      				if (obj_vertices[face[current[1]]] == sharp_vertices_end[j])
-      				sharp = true;
-      			}
-
-      			if (obj_vertices[face[current[0]]] == sharp_vertices_end[j])
-      			{
-      				if (obj_vertices[face[current[1]]] == sharp_vertices_start[j])
-      				sharp = true;
-      			}
-      		}
-
-      		if (sharp) {
-      			new_odd_vertix = (0.5f)*(obj_vertices[face[current[0]]] + obj_vertices[face[current[1]]]);
-      			sharp_vertices_start.push_back(obj_vertices[face[current[0]]]);
-				sharp_vertices_end.push_back(new_odd_vertix);
-				sharp_vertices_start.push_back(new_odd_vertix);
-				sharp_vertices_end.push_back(obj_vertices[face[current[1]]]);
-      		}
-      		else {
-				new_odd_vertix = (0.375f)*(obj_vertices[face[current[0]]] + obj_vertices[face[current[1]]]) + (0.125f)*(obj_vertices[outer_v0] + obj_vertices[outer_v1]);
-			}
-
-      bool duplicate = false;
-      int index;
-
-      for (size_t b = 0; b < odd_vertices.size(); b++) {
-        if (odd_vertices[b] == new_odd_vertix) {
-          index = b;
-          duplicate = true;
-          //std::cout << "oh no" << '\n';
-        }
-      }
-      if (!duplicate) {
-        odd_vertices.push_back(new_odd_vertix);
-        index = odd_vertices.size() - 1;
-      }
-
-      as->faces[x].edge_vertices.push_back(index);
-		}
-	}
+  std::vector<glm::vec4> new_sharp_vertices = std::vector<glm::vec4>(obj_vertices.size());
+  std::vector<glm::vec4> new_sharp_crease_start;
+  std::vector<glm::vec4> new_sharp_crease_end;
 
   //computes new even vertices
   for (size_t z = 0; z < obj_faces.size(); z++) {
@@ -103,24 +34,48 @@ void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
 
       //checks if vertex is on sharp edge
       bool sharp = false;
-      for (int j = 0; j < sharp_vertices_start.size(); ++j)
+      for (int j = 0; j < sharp_crease_start.size(); ++j)
       {
-      	if (obj_vertices[obj_faces[z][i]] == sharp_vertices_start[j])
+      	if (obj_vertices[obj_faces[z][i]] == sharp_crease_start[j])
       	{
       		sharp = true;
       	}
       }
-      for (int j = 0; j < sharp_vertices_end.size(); ++j)
+      for (int j = 0; j < sharp_crease_end.size(); ++j)
       {
-      	if (obj_vertices[obj_faces[z][i]] == sharp_vertices_end[j])
+      	if (obj_vertices[obj_faces[z][i]] == sharp_crease_end[j])
       	{
       		sharp = true;
       	}
       }
 
       if (sharp) {
-      	//NEEDS TO BE CHANGED
-      	new_even_vertex = obj_vertices[obj_faces[z][i]];
+      	new_even_vertex = (0.75f)*obj_vertices[obj_faces[z][i]];
+      	int count = 0;
+      	for (auto t : current.adj_vertices)
+      	{
+      		for (int j = 0; j < sharp_crease_start.size(); ++j)
+      		{
+      			if (obj_vertices[obj_faces[z][i]] == sharp_crease_start[j] && obj_vertices[t] == sharp_crease_end[j])
+      			{
+      				sum = sum + (0.125f) * obj_vertices[t];
+      				count++;
+      			}
+      			if (obj_vertices[t] == sharp_crease_start[j] && obj_vertices[obj_faces[z][i]] == sharp_crease_end[j])
+      			{
+      				sum = sum + (0.125f) * obj_vertices[t];
+      				count++;
+      			}
+      		}
+      	}
+      	if (count == 0) {
+      		sum = (0.25f)*obj_vertices[obj_faces[z][i]];
+      	}
+      	if (count == 1) {
+      		sum = sum + sum;
+      	}
+      	new_even_vertex = new_even_vertex + sum;
+      	new_sharp_vertices[obj_faces[z][i]] = new_even_vertex;
       }
       else {
 	      if (n == 3) {
@@ -158,10 +113,88 @@ void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
     }
   }
 
+  //computes odd vertices
+	for (int x = 0; x < obj_faces.size(); x++) {
+    glm::uvec3 face = obj_faces[x];
+		std::vector<int> combination{0,1,2};
+		for(auto i : combination){
+			std::vector<int> current = combination;
+			current.erase(current.begin() + i);
+			glm::vec4 new_odd_vertix;
+
+			std::set<int> sf = shared_faces(face[current[0]], face[current[1]]);
+			std::set<int> outer_vertices;
+			for(auto f : sf){
+				outer_vertices.insert(obj_faces[f].x);
+				outer_vertices.insert(obj_faces[f].y);
+				outer_vertices.insert(obj_faces[f].z);
+			}
+			outer_vertices.erase(face[current[0]]);
+			outer_vertices.erase(face[current[1]]);
+
+			// for(auto v: outer_vertices){
+			// 	std::cout << v << " ";
+			// }
+			// std::cout << std::endl;
+			int outer_v0 = *outer_vertices.begin();
+			int outer_v1 = *(++outer_vertices.begin());
+
+			bool sharp = false;
+      		for (int j = 0; j < sharp_crease_start.size(); ++j)
+      		{
+      			if (obj_vertices[face[current[0]]] == sharp_crease_start[j])
+      			{
+      				if (obj_vertices[face[current[1]]] == sharp_crease_end[j])
+      				sharp = true;
+      			}
+
+      			if (obj_vertices[face[current[0]]] == sharp_crease_end[j])
+      			{
+      				if (obj_vertices[face[current[1]]] == sharp_crease_start[j])
+      				sharp = true;
+      			}
+      		}
+
+      		if (sharp) {
+      			new_odd_vertix = (0.5f)*(obj_vertices[face[current[0]]] + obj_vertices[face[current[1]]]);
+      		}
+      		else {
+				new_odd_vertix = (0.375f)*(obj_vertices[face[current[0]]] + obj_vertices[face[current[1]]]) + (0.125f)*(obj_vertices[outer_v0] + obj_vertices[outer_v1]);
+			}
+
+      bool duplicate = false;
+      int index;
+
+      for (size_t b = 0; b < odd_vertices.size(); b++) {
+        if (odd_vertices[b] == new_odd_vertix) {
+          index = b;
+          duplicate = true;
+          //std::cout << "oh no" << '\n';
+        }
+      }
+      if (!duplicate) {
+      	if (sharp) {
+      		new_sharp_crease_start.push_back(new_sharp_vertices[face[current[0]]]);
+			new_sharp_crease_end.push_back(new_odd_vertix);
+			new_sharp_crease_start.push_back(new_odd_vertix);
+			new_sharp_crease_end.push_back(new_sharp_vertices[face[current[1]]]);
+      	}
+        odd_vertices.push_back(new_odd_vertix);
+        index = odd_vertices.size() - 1;
+      }
+
+      as->faces[x].edge_vertices.push_back(index);
+		}
+	}
+
   //constructs new faces
   obj_vertices = even_vertices;
   obj_vertices.insert( obj_vertices.end(), odd_vertices.begin(), odd_vertices.end() );
   obj_faces.clear();
+
+  sharp_crease_start = new_sharp_crease_start;
+  sharp_crease_end = new_sharp_crease_end;
+
   for (auto face : as->faces) {
     int v1 = face.updated_vertices[0];
     int v2 = face.updated_vertices[1];
