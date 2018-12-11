@@ -21,12 +21,15 @@
 int window_width = 800, window_height = 600;
 double current_mouse_x, current_mouse_y;
 bool fill = true;
-bool wireframes = true, show_sphere = false;
+bool wireframes = false, show_sphere = false;
 bool ocean = false;
 float t = 0.0f;
 float wave_time = -100.0f;
 
-int inner_level = 4, outer_level = 4;
+int inner_level = 1, outer_level = 1;
+
+int polycount = 3;
+int sub = 0;
 
 // VBO and VAO descriptors.
 enum { kVertexBuffer, kIndexBuffer, kNumVbos };
@@ -43,8 +46,17 @@ std::vector<glm::uvec3> obj_faces;
 std::vector<glm::vec4> load_obj_vertices;
 std::vector<glm::uvec3> load_obj_faces;
 
+std::vector<int> sharp_vertices;
+std::vector<std::vector<int>> creases;
 std::vector<glm::vec4> ocean_vertices;
 std::vector<glm::uvec4> ocean_faces;
+
+std::vector<int> sub_sharp_vertices;
+std::vector<std::vector<int>> sub_creases;
+std::vector<glm::vec4> original_ocean_vertices;
+std::vector<glm::uvec4> original_ocean_faces;
+
+
 
 // C++ 11 String Literal
 // See http://en.cppreference.com/w/cpp/language/string_literal
@@ -268,8 +280,7 @@ void main()
 
 	vec4 A = 0.20f * fragment_color; //Ambient
 	vec4 D = dot_nl * fragment_color * 0.85f; //Diffusive
-	vec4 S = pow(dot_lr, 20) * fragment_color; //Specular
-	fragment_color = clamp(A + D + S, 0.0, 1.0);
+	fragment_color = clamp(A + D, 0.0, 1.0);
 
 	if(show_wireframes){
 		float min_value = min(min(bary_coord[0], bary_coord[1]), bary_coord[2]);
@@ -302,17 +313,17 @@ void main()
 	cp_light_direction[gl_InvocationID] = vs_light_direction[gl_InvocationID];
 	cp_world_position[gl_InvocationID]  = vs_world_position[gl_InvocationID];
 
-	float dist = distance(vec2(wave_x, 0), vec2(vs_world_position[gl_InvocationID][0], vs_world_position[gl_InvocationID][2]));
-	float mult = clamp(4 - dist, 1, 4);
+	//float dist = distance(vec2(wave_x, 0), vec2(vs_world_position[gl_InvocationID][0], vs_world_position[gl_InvocationID][2]));
+	//float mult = clamp(4 - dist, 1, 4);
 
 	if(gl_InvocationID == 0){
 		//Set Levels
-		gl_TessLevelOuter[0] = outer_level * mult;
-		gl_TessLevelOuter[1] = outer_level * mult;
-		gl_TessLevelOuter[2] = outer_level * mult;
-		gl_TessLevelOuter[3] = outer_level * mult;
-		gl_TessLevelInner[0] = inner_level * mult;
-		gl_TessLevelInner[1] = inner_level * mult;
+		gl_TessLevelOuter[0] = outer_level;// * mult;
+		gl_TessLevelOuter[1] = outer_level;// * mult;
+		gl_TessLevelOuter[2] = outer_level;// * mult;
+		gl_TessLevelOuter[3] = outer_level;// * mult;
+		gl_TessLevelInner[0] = inner_level;// * mult;
+		gl_TessLevelInner[1] = inner_level;// * mult;
 	}
 }
 )zzz";
@@ -325,19 +336,12 @@ in vec4 cp_world_position[];
 
 out vec4 vs_light_direction;
 out vec4 vs_world_position;
-out vec4 wave_normal;
 
 uniform vec4 light_position;
 uniform mat4 view;
 
 uniform float wave_x;
 uniform float t;
-
-float gauss(float x){
-	float A = 5;
-	float p = -0.5f * pow(x,2);
-	return A*pow(2.718f, p);
-}
 
 vec4 interpolate3D(vec4 v0, vec4 v1, vec4 v2, vec4 v3)
 {
@@ -349,148 +353,14 @@ vec4 interpolate3D(vec4 v0, vec4 v1, vec4 v2, vec4 v3)
 	return vec4(p, 1.0);
 }
 
-float W0(float x,float z){
-
-	float L = 2.0f;
-	float w = 2.0f/L;
-	float A = 0.3f;
-	float S = 4.0f;
-	float Ph = S * 2.0f / L;
-	float Dx = 1.0f;
-	float Dz = 1.0f;
-
-	return A * sin((Dx*x + Dz * z)*w + t*Ph);
-
-}
-
-float dW0(float x, float z, float  dx, float dz){
-
-	float L = 2.0f;
-	float w = 2.0f/L;
-	float A = 0.3f;
-	float S = 4.0f;
-	float Ph = S * 2.0f / L;
-	float Dx = 1.0f;
-	float Dz = 1.0f;
-
-	vec2 Di = vec2(Dx, Dz);
-
-	return w * dot(Di, vec2(dx,dz)) * A * cos((Dx*x + Dz * z)*w + t*Ph);
-}
-
-
-float W1(float x,float z){
-
-	float L = 2.0f;
-	float w = 2.0f/L;
-	float A = 0.2f;
-	float S = 2.4f;
-	float Ph = S * 2.0f / L;
-	float Dx = 0.0f;
-	float Dz = 1.0f;
-
-	return A * sin((Dx*x + Dz * z)*w + t*Ph);
-
-}
-
-float dW1(float x,float z, float  dx, float dz){
-
-	float L = 2.0f;
-	float w = 2.0f/L;
-	float A = 0.2f;
-	float S = 2.4f;
-	float Ph = S * 2.0f / L;
-	float Dx = 0.0f;
-	float Dz = 1.0f;
-
-	vec2 Di = vec2(Dx, Dz);
-
-	return w * dot(Di, vec2(dx,dz)) * A * cos((Dx*x + Dz * z)*w + t*Ph);
-}
-
-float W2(float x,float z){
-
-	float L = 2.0f;
-	float w = 2.0f/L;
-	float A = 0.1f;
-	float S = 3.1f;
-	float Ph = S * 2.0f / L;
-	float Dx = -1.0f;
-	float Dz = 0.5f;
-
-	return A * sin((Dx*x + Dz * z)*w + t*Ph);
-
-}
-
-float dW2(float x,float z, float  dx, float dz){
-
-	float L = 2.0f;
-	float w = 2.0f/L;
-	float A = 0.1f;
-	float S = 3.1f;
-	float Ph = S * 2.0f / L;
-	float Dx = -1.0f;
-	float Dz = 0.5f;
-
-	vec2 Di = vec2(Dx, Dz);
-
-	return w * dot(Di, vec2(dx,dz)) * A * cos((Dx*x + Dz * z)*w + t*Ph);
-}
-
-float W3(float x,float z){
-
-	float L = 2.0f;
-	float w = 2.0f/L;
-	float A = 0.2f;
-	float S = 2.2f;
-	float Ph = S * 2.0f / L;
-	float Dx = 1.0f;
-	float Dz = 1.0f;
-
-	return A * sin((Dx*x + Dz * z)*w + t*Ph);
-
-}
-
-float dW3(float x,float z, float  dx, float dz){
-
-	float L = 2.0f;
-	float w = 2.0f/L;
-	float A = 0.2f;
-	float S = 2.2f;
-	float Ph = S * 2.0f / L;
-	float Dx = 1.0f;
-	float Dz = 1.0f;
-
-	vec2 Di = vec2(Dx, Dz);
-
-	return w * dot(Di, vec2(dx,dz)) * A * cos((Dx*x + Dz*z)*w + t*Ph);
-}
-
-float H(float x, float z){
-	return W0( x,  z) + W1( x,  z) + W2( x,  z) + W3( x,  z);
-}
-
-vec4 getNormal(float x, float z){
-	float Hdx = dW0(x,z,1,0) + dW1(x,z,1,0) + dW2(x,z,1,0) + dW3(x,z,1,0);
-	float Hdz = dW0(x,z,0,1) + dW1(x,z,0,1) + dW2(x,z,0,1) + dW3(x,z,0,1);
-	return vec4(vec3(-Hdx,-1.0,Hdz),1.0);
-}
-
 void main()
 {
 	// interpolate
 	vs_world_position =  interpolate3D(cp_world_position[0], cp_world_position[1], cp_world_position[2], cp_world_position[3]);
-	//vs_light_direction = interpolate3D(cp_light_direction[0], cp_light_direction[1], cp_light_direction[2], cp_light_direction[3]);
-	float dist = distance(vec2(wave_x, 0), vec2(vs_world_position[0], vs_world_position[2]));
-
-	vs_world_position[1] += H(vs_world_position[0], vs_world_position[2]) + gauss(dist);
+	
 	gl_Position = view * vs_world_position;
 	vs_light_direction = -gl_Position + view * light_position;
 
-	float normal_off_x = - gauss(dist) * (vs_world_position[0] - wave_x);
-	float normal_off_z = gauss(dist) * (vs_world_position[2]);
-
-	wave_normal = getNormal(vs_world_position[0], vs_world_position[2]) + vec4(normal_off_x, 0.0, normal_off_z, 0.0);
 }
 )zzz";
 
@@ -516,8 +386,10 @@ void main()
 	vec3 A = vec3(vs_world_position[0]);
 	vec3 B = vec3(vs_world_position[1]);
 	vec3 C = vec3(vs_world_position[2]);
-	vec3 cross_prod = cross(B-A,C-A);
+	vec3 cross_prod = cross(B - A,C-A);
 	area = length(cross_prod);
+
+	normal = vec4(normalize(cross_prod), 0.0);
 
 	for (n = 0; n < gl_in.length(); n++) {
 		light_direction = vs_light_direction[n];
@@ -525,7 +397,6 @@ void main()
 		gl_Position = projection * gl_in[n].gl_Position;
 		bary_coord = vec3(0.0,0.0,0.0);
 		bary_coord[n] = 1.0;
-		normal = wave_normal[n];
 		EmitVertex();
 	}
 
@@ -687,10 +558,156 @@ SaveObj()
   }
 }
 
+void LoadQuadObj(std::string filename, std::vector<glm::vec4>& vertices,
+			std::vector<glm::uvec4>& indices){
+	vertices.clear();
+	indices.clear();
+	sharp_vertices.clear();
+	creases.clear();
+
+	polycount = 4;
+	glPatchParameteri(GL_PATCH_VERTICES, polycount);
+	std::ifstream myfile (filename);
+
+	std::vector<std::pair<int,int>> sharp_edges;
+	if (myfile.is_open())
+  	{
+  		std::string line;
+
+		while (! myfile.eof() )
+    	{
+
+      		getline (myfile,line);
+
+
+      		//Add Creases
+      		if(line.c_str()[0] == 'e'){
+      			std::stringstream stream(line);
+      			std::vector<std::string> tokens;
+      			std::string x;
+      			while(getline(stream, x, ' '))
+    			{
+        			tokens.push_back(x);
+    			}
+    			sharp_edges.emplace_back(std::pair<int,int>(stoi(tokens[1]) - 1,stoi(tokens[2]) - 1));
+
+      		}
+      		//add corners
+      		if(line.c_str()[0] == 'c'){
+      			std::stringstream stream(line);
+      			std::vector<std::string> tokens;
+      			std::string x;
+      			while(getline(stream, x, ' '))
+    			{
+        			tokens.push_back(x);
+    			}
+
+    			std::cout << "c ";
+    			for(auto& v : tokens){
+    				if(v == "c"){continue;}
+    				int p = stoi(v);
+    				std::cout << p << " ";
+    				sharp_vertices.push_back(p - 1);
+    			}
+    			std::cout << std::endl;
+      		}
+
+      		//Add New Vertex
+      		if(line.c_str()[0] == 'v'){
+      			std::stringstream stream(line);
+      			std::vector<std::string> tokens;
+      			std::string x;
+      			while(getline(stream, x, ' '))
+    			{
+        			tokens.push_back(x);
+    			}
+
+    			std::cout << "v ";
+    			std::vector<float> new_vertex;
+    			for(auto& v : tokens){
+    				if(v == "v"){continue;}
+    				float p = stof(v)/1.0f;
+    				std::cout << p << " ";
+    				new_vertex.push_back(p);
+    			}
+
+    			vertices.push_back(glm::vec4(new_vertex[0], new_vertex[1], new_vertex[2], 1.0f));
+    			std::cout << std::endl;
+      		}
+
+      		//Add New Face
+      		if(line.c_str()[0] == 'f'){
+      			
+      			std::stringstream stream(line);
+      			std::vector<std::string> tokens;
+      			std::string x;
+      			std::string value;
+
+      			while(getline(stream, x, ' '))
+    			{
+
+    				std::stringstream valuestream(x);
+
+    				getline(valuestream, value, '/');
+        			tokens.push_back(value);
+    			}
+
+    			std::cout << "f ";
+    			std::vector<float> new_face;
+    			int i = 0;
+    			for(auto& v : tokens){
+    				i++;
+    				if(v == "f"){continue;}
+    				if(v == ""){continue;}
+    				if(i > 5){continue;}
+
+    				//std::cout << v.size();
+    				
+    				int p = stoi(v);
+    				std::cout << p << " ";
+    				new_face.push_back(p - 1);
+    			}
+
+    			indices.push_back(glm::uvec4(new_face[0], new_face[1], new_face[2], new_face[3]));
+    			std::cout << std::endl;
+      		}
+      	}
+  	}
+
+  	std::vector<int> new_sharp_vertices = std::vector<int>(vertices.size());
+  	for(auto sv : sharp_vertices){
+  		new_sharp_vertices[sv] = 1;
+  	}
+	
+  	sharp_vertices = new_sharp_vertices;
+
+  	// std::cout << "-------\n";
+  	// for(auto sv : sharp_vertices){
+  	// 	std::cout << sv << std::endl;
+  	// }
+
+  	creases = std::vector<std::vector<int>>(vertices.size());
+  	for(int i = 0; i < creases.size(); i++){
+  		creases[i] = std::vector<int>(vertices.size());
+  	}
+
+  	for(auto se : sharp_edges){
+  		std::cout << se.first << " " << se.second << std::endl;
+  		int v0 = (se.first < se.second) ? se.first : se.second;
+  		int v1 = (se.first < se.second) ? se.second : se.first;
+  		creases[v0][v1] = 1;
+  	}
+
+  	myfile.close();
+	std::cout << vertices.size() << std::endl;
+	std::cout << indices.size() << std::endl;
+}
+
 void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
 			std::vector<glm::uvec3>& indices)
 {
-
+	polycount = 3;
+	glPatchParameteri(GL_PATCH_VERTICES, polycount);
 	vertices.clear();
 	indices.clear();
 
@@ -827,11 +844,30 @@ KeyCallback(GLFWwindow* window,
 	} else if (key == GLFW_KEY_F && action != GLFW_RELEASE && mods != GLFW_MOD_CONTROL){
 		wireframes = !wireframes;
 	} else if (key == GLFW_KEY_MINUS && action != GLFW_RELEASE){
-		outer_level = (outer_level - 1) ? outer_level - 1 : 1;
-		printf("new outer level: %d\n", outer_level);
+		//outer_level = (outer_level - 1) ? outer_level - 1 : 1;
+		//printf("new outer level: %d\n", outer_level);
+		sub = (sub == 0) ? 0 : sub - 1;
+		sub_creases = creases;
+		sub_sharp_vertices = sharp_vertices;
+		ocean_vertices = original_ocean_vertices;
+		ocean_faces = original_ocean_faces;
+
+		for(int i = 0; i < sub; i++){
+			g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sub_sharp_vertices, sub_creases);
+		}
+
 	} else if (key == GLFW_KEY_EQUAL && action != GLFW_RELEASE){
-		outer_level = outer_level + 1 != 65 ? outer_level + 1 : 64;
-		printf("new outer level: %d\n", outer_level);
+		sub = (sub > 9) ? sub : sub + 1;
+		sub_creases = creases;
+		sub_sharp_vertices = sharp_vertices;
+		ocean_vertices = original_ocean_vertices;
+		ocean_faces = original_ocean_faces;
+
+		for(int i = 0; i < sub; i++){
+			g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sub_sharp_vertices, sub_creases);
+		}
+		//outer_level = outer_level + 1 != 65 ? outer_level + 1 : 64;
+		//printf("new outer level: %d\n", outer_level);
 	} else if (key == GLFW_KEY_COMMA && action != GLFW_RELEASE){
 		inner_level = (inner_level - 1) ? inner_level - 1 : 1;
 		printf("new inner level: %d\n", inner_level);
@@ -891,6 +927,12 @@ int main(int argc, char* argv[])
 	if (!glfwInit()){
 		exit(EXIT_FAILURE);
 	}
+	char* obj_file;
+	if(argc != 2){
+		exit(EXIT_FAILURE);
+	} else {
+		obj_file = argv[1];
+	}
 
 	g_menger = std::make_shared<Menger>();
 	g_sub = std::make_shared<Subdivision>();
@@ -926,8 +968,31 @@ int main(int argc, char* argv[])
 	g_menger->generate_geometry(obj_vertices, obj_faces);
 	g_menger->set_clean();
 
+
 	LoadObj("../objects/cube.s.obj", obj_vertices, obj_faces);
 	g_sub->loop_subdivision(obj_vertices, obj_faces);
+
+	LoadQuadObj(obj_file, ocean_vertices, ocean_faces);
+	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices, creases);
+	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices, creases);
+	original_ocean_faces = ocean_faces;
+	original_ocean_vertices = ocean_vertices;
+	// g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices, creases);
+	// g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices, creases);
+
+
+	std::cout << "-------\n";
+  	for(auto sv : sharp_vertices){
+  		std::cout << sv << std::endl;
+  	}
+	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices);
+	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices);
+	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices);
+	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices);
+	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces);
+	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces);
+    //g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces);
+    //g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces);
 
 	glm::vec4 min_bounds = glm::vec4(std::numeric_limits<float>::max());
 	glm::vec4 max_bounds = glm::vec4(-std::numeric_limits<float>::max());
@@ -1025,7 +1090,7 @@ int main(int argc, char* argv[])
 
 	// FIXME: load the OCEAN into g_buffer_objects[kOceanVao][*],
 	//        and bind these VBO to g_array_objects[kOceanVao]
-	CreateOcean(ocean_vertices, ocean_faces, 0.0);
+	
 	//CreateTriangle(floor_vertices, floor_faces);
 
 	// Switch to the VAO for Floor.
@@ -1318,7 +1383,6 @@ int main(int argc, char* argv[])
 
 		// Switch to the VAO for Floor.
 		CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kOceanVao]));
-		CreateOcean(ocean_vertices, ocean_faces, t);
 
 		// Generate buffer objects
 		CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kOceanVao][0]));;
@@ -1425,7 +1489,10 @@ int main(int argc, char* argv[])
 		CHECK_GL_ERROR(glUniform4fv(light_position_location, 1, &light_position[0]));
 
 		// Draw our triangles.
-		CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
+		if(polycount == 3){
+			CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
+		}
+		
 
 		// FIXME: Render the floor
 		// Note: What you need to do is
@@ -1448,7 +1515,7 @@ int main(int argc, char* argv[])
 		CHECK_GL_ERROR(glUniform1i(outer_level_location, outer_level));
 
 		// Draw our triangles.
-		if(!ocean){
+		if(false){
 			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
 		}
 
@@ -1500,7 +1567,7 @@ int main(int argc, char* argv[])
 
 
 		// Draw our triangles.
-		if(ocean){
+		if(polycount == 4){
 			CHECK_GL_ERROR(glDrawElements(GL_PATCHES, ocean_faces.size() * 4, GL_UNSIGNED_INT, 0));
 		}
 
