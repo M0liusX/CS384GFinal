@@ -200,8 +200,8 @@ void main()
 	vec4 color = vec4(1.0, 0.0, 0.0, 1.0);
 	float dot_nl = dot(normalize(light_direction), normalize(normal));
 
-	vec4 A = 0.30f * color; //Ambient
-	vec4 D = dot_nl * color * 0.70f; //Diffusive
+	vec4 A = 0.50f * color; //Ambient
+	vec4 D = dot_nl * color * 0.50f; //Diffusive
 	fragment_color = clamp(A + D, 0.0, 1.0);
 	// dot_nl = clamp(dot_nl, 0.0, 1.0);
 
@@ -375,7 +375,7 @@ void main()
 {
 	// interpolate
 	vs_world_position =  interpolate3D(cp_world_position[0], cp_world_position[1], cp_world_position[2], cp_world_position[3]);
-	
+
 	gl_Position = view * vs_world_position;
 	vs_light_direction = -gl_Position + view * light_position;
 
@@ -667,7 +667,7 @@ void LoadQuadObj(std::string filename, std::vector<glm::vec4>& vertices,
 
       		//Add New Face
       		if(line.c_str()[0] == 'f'){
-      			
+
       			std::stringstream stream(line);
       			std::vector<std::string> tokens;
       			std::string x;
@@ -692,7 +692,7 @@ void LoadQuadObj(std::string filename, std::vector<glm::vec4>& vertices,
     				if(i > 5){continue;}
 
     				//std::cout << v.size();
-    				
+
     				int p = stoi(v);
     				std::cout << p << " ";
     				new_face.push_back(p - 1);
@@ -708,7 +708,7 @@ void LoadQuadObj(std::string filename, std::vector<glm::vec4>& vertices,
   	for(auto sv : sharp_vertices){
   		new_sharp_vertices[sv] = 1;
   	}
-	
+
   	sharp_vertices = new_sharp_vertices;
 
   	// std::cout << "-------\n";
@@ -734,7 +734,7 @@ void LoadQuadObj(std::string filename, std::vector<glm::vec4>& vertices,
 }
 
 void LoadObj(std::string filename, std::vector<glm::vec4>& vertices,
-			std::vector<glm::uvec3>& indices,std::vector<int>& sharp_crease_start_index, 
+			std::vector<glm::uvec3>& indices,std::vector<int>& sharp_crease_start_index,
 			std::vector<int>& sharp_crease_end_index, std::vector<int>& sticky_vertices_indexes)
 {
 	polycount = 3;
@@ -945,7 +945,7 @@ KeyCallback(GLFWwindow* window,
 		for(int i = 0; i < sub; i++){
 			g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sub_sharp_vertices, sub_creases);
 		}
-		}	
+		}
 
 	} else if (key == GLFW_KEY_EQUAL && action != GLFW_RELEASE){
 		sub = (sub > 3) ? sub : sub + 1;
@@ -1227,7 +1227,7 @@ int main(int argc, char* argv[])
 
 	// FIXME: load the OCEAN into g_buffer_objects[kOceanVao][*],
 	//        and bind these VBO to g_array_objects[kOceanVao]
-	
+
 	//CreateTriangle(floor_vertices, floor_faces);
 
 	// Switch to the VAO for Floor.
@@ -1628,7 +1628,7 @@ int main(int argc, char* argv[])
 		if(polycount == 3){
 			CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0));
 		}
-		
+
 
 		// FIXME: Render the floor
 		// Note: What you need to do is
