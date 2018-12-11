@@ -11,7 +11,8 @@ Subdivision::~Subdivision()
 }
 
 void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
-                          std::vector<glm::uvec3>& obj_faces, std::vector<glm::vec4>& sharp_crease_start, std::vector<glm::vec4>& sharp_crease_end)
+                          std::vector<glm::uvec3>& obj_faces, std::vector<glm::vec4>& sharp_crease_start,
+                           std::vector<glm::vec4>& sharp_crease_end, std::vector<glm::vec4>& sticky_vertices)
 {
 	//std::cout << "test" << std::endl;
 	as = new AdjacencyStructure(obj_vertices, obj_faces);
@@ -34,6 +35,7 @@ void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
 
       //checks if vertex is on sharp edge
       bool sharp = false;
+      bool stuck = false;
       for (int j = 0; j < sharp_crease_start.size(); ++j)
       {
       	if (obj_vertices[obj_faces[z][i]] == sharp_crease_start[j])
@@ -49,32 +51,55 @@ void Subdivision::loop_subdivision(std::vector<glm::vec4>& obj_vertices,
       	}
       }
 
-      if (sharp) {
-      	new_even_vertex = (0.75f)*obj_vertices[obj_faces[z][i]];
+      //checks if vertex is a sticky vertex
+      for (int j = 0; j < sticky_vertices.size(); ++j)
+      {
+      	if (obj_vertices[obj_faces[z][i]] == sticky_vertices[j])
+      	{
+      		stuck = true;
+      	}
+      }
+
+      if (stuck) {
+      	new_even_vertex = obj_vertices[obj_faces[z][i]];
+      }
+      else if (sharp) {
       	int count = 0;
       	for (auto t : current.adj_vertices)
       	{
       		for (int j = 0; j < sharp_crease_start.size(); ++j)
       		{
-      			if (obj_vertices[obj_faces[z][i]] == sharp_crease_start[j] && obj_vertices[t] == sharp_crease_end[j])
+      			if ((obj_vertices[obj_faces[z][i]] == sharp_crease_start[j] && obj_vertices[t] == sharp_crease_end[j]) ||
+      				(obj_vertices[t] == sharp_crease_start[j] && obj_vertices[obj_faces[z][i]] == sharp_crease_end[j]))
       			{
-      				sum = sum + (0.125f) * obj_vertices[t];
-      				count++;
-      			}
-      			if (obj_vertices[t] == sharp_crease_start[j] && obj_vertices[obj_faces[z][i]] == sharp_crease_end[j])
-      			{
-      				sum = sum + (0.125f) * obj_vertices[t];
+      				sum = sum + obj_vertices[t];
       				count++;
       			}
       		}
       	}
-      	if (count == 0) {
-      		sum = (0.25f)*obj_vertices[obj_faces[z][i]];
+
+      	if (count < 2) {
+      		if (n == 3) {
+	        	beta = 3.0 / 16.0;
+	      	}
+	      	else {
+	        	beta = 3.0 / (8.0 * n);
+	      	}
+
+	      	for (auto v : current.adj_vertices) {
+	        	sum = sum + obj_vertices[v];
+	      	}
+
+	      	new_even_vertex = (obj_vertices[obj_faces[z][i]] * (1 - (n * beta))) + sum * beta;
       	}
-      	if (count == 1) {
-      		sum = sum + sum;
+      	else if (count == 2) {
+      		new_even_vertex = (0.75f) * obj_vertices[obj_faces[z][i]] + (0.125f) * sum;
       	}
-      	new_even_vertex = new_even_vertex + sum;
+      	else {
+      		new_even_vertex = obj_vertices[obj_faces[z][i]];
+      	}
+      	//std::cout << count;
+
       	new_sharp_vertices[obj_faces[z][i]] = new_even_vertex;
       }
       else {
