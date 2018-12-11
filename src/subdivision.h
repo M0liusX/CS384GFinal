@@ -194,7 +194,8 @@ public:
 	~Subdivision();
 
   void loop_subdivision(std::vector<glm::vec4>& obj_vertices,
-	                       std::vector<glm::uvec3>& obj_faces) ;
+	                       std::vector<glm::uvec3>& obj_faces, std::vector<glm::vec4>& sharp_crease_start,
+	                        std::vector<glm::vec4>& sharp_crease_end, std::vector<glm::vec4>& sticky_vertices) ;
 
   void catmull_clark_subdivision(std::vector<glm::vec4>& obj_vertices,
                        	 std::vector<glm::uvec4>& obj_faces,
