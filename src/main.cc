@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <chrono>
+#include <jpegio.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -42,6 +43,8 @@ GLuint g_buffer_objects[kNumVaos][kNumVbos];  // These will store VBO descriptor
 
 std::vector<glm::vec4> obj_vertices;
 std::vector<glm::uvec3> obj_faces;
+std::vector<glm::vec4> sub_obj_vertices;
+std::vector<glm::uvec3> sub_obj_faces;
 
 std::vector<int> sharp_crease_start_index;
 std::vector<int> sharp_crease_end_index;
@@ -49,6 +52,8 @@ std::vector<int> sticky_vertices_indexes;
 
 std::vector<glm::vec4> sharp_crease_start;
 std::vector<glm::vec4> sharp_crease_end;
+std::vector<glm::vec4> sub_sharp_crease_start;
+std::vector<glm::vec4> sub_sharp_crease_end;
 std::vector<glm::vec4> sticky_vertices;
 
 std::vector<glm::vec4> load_obj_vertices;
@@ -64,6 +69,7 @@ std::vector<std::vector<int>> sub_creases;
 std::vector<glm::vec4> original_ocean_vertices;
 std::vector<glm::uvec4> original_ocean_faces;
 
+char* sub_type;
 
 
 // C++ 11 String Literal
@@ -193,9 +199,13 @@ void main()
 {
 	vec4 color = vec4(1.0, 0.0, 0.0, 1.0);
 	float dot_nl = dot(normalize(light_direction), normalize(normal));
-	dot_nl = clamp(dot_nl, 0.0, 1.0);
 
-	fragment_color = clamp(dot_nl * color, 0.0, 1.0);
+	vec4 A = 0.30f * color; //Ambient
+	vec4 D = dot_nl * color * 0.70f; //Diffusive
+	fragment_color = clamp(A + D, 0.0, 1.0);
+	// dot_nl = clamp(dot_nl, 0.0, 1.0);
+
+	// fragment_color = clamp(dot_nl * color, 0.0, 1.0);
 }
 )zzz";
 
@@ -555,14 +565,26 @@ SaveObj()
   std::ofstream myfile ("geometry.obj");
   if (myfile.is_open())
   {
-	for(int i = 0; i < obj_vertices.size(); i++){
-       myfile << "v " << obj_vertices[i][0] << " " << obj_vertices[i][1] <<  " " << obj_vertices[i][2] << std::endl;
-	}
+  	if (std::string(sub_type) == "loop") {
+		for(int i = 0; i < obj_vertices.size(); i++){
+        	myfile << "v " << obj_vertices[i][0] << " " << obj_vertices[i][1] <<  " " << obj_vertices[i][2] << std::endl;
+	  	}
 
-	for(int i = 0; i < obj_faces.size(); i++){
-       myfile << "f " << obj_faces[i][0] << " " << obj_faces[i][1] <<  " " << obj_faces[i][2] << std::endl;
+		for(int i = 0; i < obj_faces.size(); i++){
+       		myfile << "f " << obj_faces[i][0]  + 1 << " " << obj_faces[i][1] + 1 <<  " " << obj_faces[i][2] + 1 << std::endl;
+		}
+    	myfile.close();
 	}
-    myfile.close();
+	else {
+		for(int i = 0; i < ocean_vertices.size(); i++){
+        	myfile << "v " << ocean_vertices[i][0] << " " << ocean_vertices[i][1] <<  " " << ocean_vertices[i][2] << std::endl;
+	  	}
+
+		for(int i = 0; i < ocean_faces.size(); i++){
+       		myfile << "f " << ocean_faces[i][0]  + 1 << " " << ocean_faces[i][1] + 1 <<  " " << ocean_faces[i][2] + 1 << " " << ocean_faces[i][3] + 1 << std::endl;
+		}
+    	myfile.close();
+	}
   }
 }
 
@@ -903,6 +925,18 @@ KeyCallback(GLFWwindow* window,
 		//outer_level = (outer_level - 1) ? outer_level - 1 : 1;
 		//printf("new outer level: %d\n", outer_level);
 		sub = (sub == 0) ? 0 : sub - 1;
+		if (std::string(sub_type) == "loop") {
+			obj_vertices = sub_obj_vertices;
+			obj_faces = sub_obj_faces;
+			sub_sharp_crease_start = sharp_crease_start;
+			sub_sharp_crease_end = sharp_crease_end;
+
+			for(int i = 0; i < sub; i++){
+				g_sub->loop_subdivision(obj_vertices, obj_faces, sub_sharp_crease_start, sub_sharp_crease_end, sticky_vertices);
+			}
+			g_menger->set_dirty();
+		}
+		else {
 		sub_creases = creases;
 		sub_sharp_vertices = sharp_vertices;
 		ocean_vertices = original_ocean_vertices;
@@ -911,9 +945,22 @@ KeyCallback(GLFWwindow* window,
 		for(int i = 0; i < sub; i++){
 			g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sub_sharp_vertices, sub_creases);
 		}
+		}	
 
 	} else if (key == GLFW_KEY_EQUAL && action != GLFW_RELEASE){
-		sub = (sub > 9) ? sub : sub + 1;
+		sub = (sub > 3) ? sub : sub + 1;
+		if (std::string(sub_type) == "loop") {
+			obj_vertices = sub_obj_vertices;
+			obj_faces = sub_obj_faces;
+			sub_sharp_crease_start = sharp_crease_start;
+			sub_sharp_crease_end = sharp_crease_end;
+
+			for(int i = 0; i < sub; i++){
+				g_sub->loop_subdivision(obj_vertices, obj_faces, sub_sharp_crease_start, sub_sharp_crease_end, sticky_vertices);
+			}
+			g_menger->set_dirty();
+		}
+		else {
 		sub_creases = creases;
 		sub_sharp_vertices = sharp_vertices;
 		ocean_vertices = original_ocean_vertices;
@@ -921,6 +968,7 @@ KeyCallback(GLFWwindow* window,
 
 		for(int i = 0; i < sub; i++){
 			g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sub_sharp_vertices, sub_creases);
+		}
 		}
 		//outer_level = outer_level + 1 != 65 ? outer_level + 1 : 64;
 		//printf("new outer level: %d\n", outer_level);
@@ -934,8 +982,11 @@ KeyCallback(GLFWwindow* window,
 		ocean = !ocean;
 		int v = 3 + ocean;
 		glPatchParameteri(GL_PATCH_VERTICES, v);
-	} else if (key == GLFW_KEY_T && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
-		wave_time = t;
+	} else if (key == GLFW_KEY_J && mods == GLFW_MOD_CONTROL && action == GLFW_RELEASE) {
+		GLubyte *pixel = (GLubyte*)malloc(4 * window_width * window_height);
+        glReadPixels(0, 0, window_width, window_height, GL_RGB, GL_UNSIGNED_BYTE, pixel);
+        SaveJPEG("output.jpg", window_width, window_height, pixel);
+        free(pixel);
 		//printf("Hello World!\n");
 	} else if (key == GLFW_KEY_M && action == GLFW_RELEASE) {
 		show_sphere = !show_sphere;
@@ -984,10 +1035,11 @@ int main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 	char* obj_file;
-	if(argc != 2){
+	if(argc != 3){
 		exit(EXIT_FAILURE);
 	} else {
 		obj_file = argv[1];
+		sub_type = argv[2];
 	}
 
 	g_menger = std::make_shared<Menger>();
@@ -1025,7 +1077,10 @@ int main(int argc, char* argv[])
 	g_menger->set_clean();
 
 
-	LoadObj("../objects/cube_cylinder_sharp.s.obj", obj_vertices, obj_faces, sharp_crease_start_index, sharp_crease_end_index, sticky_vertices_indexes);
+	if (std::string(sub_type) == "loop") {
+	LoadObj(obj_file, obj_vertices, obj_faces, sharp_crease_start_index, sharp_crease_end_index, sticky_vertices_indexes);
+	sub_obj_vertices = obj_vertices;
+	sub_obj_faces = obj_faces;
 	for (int i = 0; i < sharp_crease_start_index.size(); ++i)
 	{
 		sharp_crease_start.push_back(obj_vertices[sharp_crease_start_index[i]]);
@@ -1047,12 +1102,12 @@ int main(int argc, char* argv[])
 	sharp_crease_end.push_back(obj_vertices[7]);
 	sharp_crease_end.push_back(obj_vertices[4]);*/
 
+	//g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end, sticky_vertices);
+	/*g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end, sticky_vertices);
 	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end, sticky_vertices);
 	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end, sticky_vertices);
-	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end, sticky_vertices);
-	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end, sticky_vertices);
-	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end, sticky_vertices);
-
+	g_sub->loop_subdivision(obj_vertices, obj_faces, sharp_crease_start, sharp_crease_end, sticky_vertices);*/
+	} else {
 	LoadQuadObj(obj_file, ocean_vertices, ocean_faces);
 	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices, creases);
 	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices, creases);
@@ -1065,6 +1120,7 @@ int main(int argc, char* argv[])
 	std::cout << "-------\n";
   	for(auto sv : sharp_vertices){
   		std::cout << sv << std::endl;
+  	}
   	}
 	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices);
 	//g_sub->catmull_clark_subdivision(ocean_vertices, ocean_faces, sharp_vertices);
@@ -1487,7 +1543,6 @@ int main(int argc, char* argv[])
 		CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
 
 		if (g_menger && g_menger->is_dirty()) {
-			g_menger->generate_geometry(obj_vertices, obj_faces);
 			g_menger->set_clean();
 
 			// FIXME: Upload your vertex data here.

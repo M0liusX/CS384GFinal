@@ -35,6 +35,12 @@ Menger::set_clean()
 	dirty_ = false;
 }
 
+void
+Menger::set_dirty()
+{
+	dirty_ = true;
+}
+
 // FIXME generate Menger sponge geometry
 void
 Menger::generate_geometry(std::vector<glm::vec4>& obj_vertices,
